@@ -1,0 +1,54 @@
+name: Update Scoop manifests
+
+on:
+  schedule:
+    - cron: '0 */2 * * *'   # 2時間ごと
+  workflow_dispatch:         # 手動実行も可能
+
+jobs:
+  update:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout updater repo (this repo)
+        uses: actions/checkout@v4
+        with:
+          path: updater
+
+      - name: Checkout bucket repo
+        uses: actions/checkout@v4
+        with:
+          repository: dondonoobo/my-scoop-bucket
+          token: ${{ secrets.BUCKET_PAT }}
+          path: bucket-repo
+
+      - name: Install Scoop (for checkver.ps1)
+        shell: pwsh
+        run: |
+          iwr -useb get.scoop.sh -outfile install.ps1
+          .\install.ps1 -RunAsAdmin
+          echo "$env:USERPROFILE\scoop\shims" | Out-File -FilePath $env:GITHUB_PATH -Append
+
+      - name: Run update scripts
+        shell: pwsh
+        env:
+          BUCKET_DIR: ${{ github.workspace }}\bucket-repo\bucket
+          GH_REPO: dondonoobo/my-scoop-bucket
+          GH_TOKEN: ${{ secrets.BUCKET_PAT }}
+        run: |
+          .\updater\scripts\update-fbneo.ps1
+          .\updater\scripts\update-eden.ps1
+          .\updater\scripts\update-putty-ranvis.ps1
+
+      - name: Commit and push manifest changes
+        shell: pwsh
+        run: |
+          cd bucket-repo
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add bucket/*.json
+          if (git status --porcelain) {
+            git commit -m "Auto-update manifests"
+            git push
+          } else {
+            Write-Host "No manifest changes."
+          }
