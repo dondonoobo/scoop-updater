@@ -1,36 +1,31 @@
 # scripts/update-putty-ranvis.ps1
-# PuTTY-ranvis 専用 ミラーリング＆マニフェスト更新スクリプト
-#
-# ranvis サイトはブラウザ以外のUAからのDLを拒否するため、
-# (1) ブラウザ偽装UAでzip/7zを取得し、
-# (2) 自分のGitHubリリース(固定タグ)へアップロードしてミラーし、
-# (3) マニフェストのURLをGitHubミラー(固定URL)に向ける。
+# PuTTY-ranvis ミラーリング＆マニフェスト更新（2リポジトリ構成対応／世代管理つき）
 #
 # 必要環境変数:
-#   GH_REPO       : ミラー先リポジトリ "owner/repo" (例: "yourname/scoop-bucket")
-#   GITHUB_TOKEN  : gh CLI 用トークン (Actionsが自動で渡す)
-# 前提: gh CLI が利用可能であること (GitHub Actions runnerには標準搭載)
+#   GH_REPO            : ミラー先＝マニフェストリポジトリ(A) "owner/repo"
+#   GITHUB_TOKEN       : gh CLI 用トークン（A への release 書き込み権限が必要）
+#   MANIFEST_REPO_DIR  : チェックアウト済みマニフェストリポジトリ(A)のローカルパス
 
 $ErrorActionPreference = 'Stop'
 $ProgressPreference    = 'SilentlyContinue'
+. "$PSScriptRoot\_common.ps1"
 
 # ---- 設定 ----------------------------------------------------------
-$mirrorTag  = 'putty-ranvis-latest'   # ミラー用の固定リリースタグ
-$browserUA  = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36'
-$ghRepo     = $env:GH_REPO
+$mirrorTag    = 'putty-ranvis-latest'
+$keepVersions = 3
+$browserUA    = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36'
+$ghRepo       = $env:GH_REPO
 
-if ($env:GITHUB_WORKSPACE) {
-    $bucketPath = "$env:GITHUB_WORKSPACE\bucket"
-} else {
-    $bucketPath = "$env:SCOOP\buckets\my-bucket"
-}
+$repoRoot   = Get-ManifestRepoRoot
+$bucketPath = Join-Path $repoRoot "bucket"
+$logDir     = Join-Path $repoRoot "logs"
+$logFile    = Join-Path $logDir "update_log.txt"
+$jsonPath   = Join-Path $bucketPath "putty-ranvis.json"
+$date       = Get-Date -Format "yyyy/MM/dd HH:mm:ss"
+$fileName   = Split-Path $jsonPath -Leaf
+$workDir    = Join-Path ([System.IO.Path]::GetTempPath()) "putty-ranvis-mirror"
 
-$jsonPath = "$bucketPath\putty-ranvis.json"
-$logFile  = "$bucketPath\update_log.txt"
-$date     = Get-Date -Format "yyyy/MM/dd HH:mm:ss"
-$fileName = Split-Path $jsonPath -Leaf
-$workDir  = Join-Path ([System.IO.Path]::GetTempPath()) "putty-ranvis-mirror"
-
+if (-not (Test-Path $logDir)) { New-Item -ItemType Directory -Path $logDir | Out-Null }
 function Write-Log($msg) { "$msg" | Out-File $logFile -Append -Encoding UTF8 }
 
 try {
@@ -39,20 +34,19 @@ try {
     if (-not $ghRepo) { throw "Environment variable GH_REPO is not set." }
 
     # ---- 1) サイトから最新版情報を取得 -----------------------------
-    $pageUrl  = 'https://www.ranvis.com/putty'
-    $html     = (Invoke-WebRequest -Uri $pageUrl -UserAgent $browserUA -UseBasicParsing).Content
+    $pageUrl = 'https://www.ranvis.com/putty'
+    $html    = (Invoke-WebRequest -Uri $pageUrl -UserAgent $browserUA -UseBasicParsing).Content
 
-    # 最新の 64bit(.7z) / 32bit(.zip) を1件ずつ拾う（ページ先頭=最新）
     $m64 = [regex]::Match($html, 'PuTTY-(?<ver>[\d.]+)-ranvis-(?<date>\d{8})\.win64\.7z')
     $m32 = [regex]::Match($html, 'PuTTY-(?<ver>[\d.]+)-ranvis-(?<date>\d{8})\.win32\.zip')
     if (-not $m64.Success) { throw "Could not find win64 .7z link on the page." }
 
-    $ver         = $m64.Groups['ver'].Value
-    $dateStamp   = $m64.Groups['date'].Value
-    $newVersion  = "$ver.$dateStamp"          # 複合バージョン (例: 0.84.20260524)
+    $ver        = $m64.Groups['ver'].Value
+    $dateStamp  = $m64.Groups['date'].Value
+    $newVersion = "$ver.$dateStamp"
 
-    $json        = Get-Content $jsonPath -Raw | ConvertFrom-Json
-    $oldVersion  = $json.version
+    $json       = Get-Content $jsonPath -Raw | ConvertFrom-Json
+    $oldVersion = $json.version
 
     if ($newVersion -eq $oldVersion) {
         Write-Log "[$fileName] $newVersion (Up to date)"
@@ -67,16 +61,13 @@ try {
     New-Item -ItemType Directory -Path $workDir | Out-Null
 
     $srcBase = 'https://www.ranvis.com/downloads'
+    $assets  = @()
 
-    $assets = @()  # ミラーするファイルのリスト
-
-    # 64bit (.7z)
     $name64 = "PuTTY-$ver-ranvis-$dateStamp.win64.7z"
     $path64 = Join-Path $workDir $name64
     Invoke-WebRequest -Uri "$srcBase/$name64" -UserAgent $browserUA -OutFile $path64 -UseBasicParsing
     $assets += $path64
 
-    # 32bit (.zip) ※見つかった場合のみ
     if ($m32.Success) {
         $ver32  = $m32.Groups['ver'].Value
         $date32 = $m32.Groups['date'].Value
@@ -86,9 +77,9 @@ try {
         $assets += $path32
     }
 
-    # ---- 3) GitHubリリース(固定タグ)へミラー -----------------------
-    # リリースが無ければ作成、あれば再利用。--clobber で同名アセットを上書き。
-    $relExists = (& gh release view $mirrorTag --repo $ghRepo *>&1; $LASTEXITCODE -eq 0)
+    # ---- 3) GitHubリリース(固定タグ)へミラー（ミラー先＝リポジトリA）---
+    & gh release view $mirrorTag --repo $ghRepo *>&1 | Out-Null
+    $relExists = ($LASTEXITCODE -eq 0)
     if (-not $relExists) {
         & gh release create $mirrorTag --repo $ghRepo `
             --title "PuTTY-ranvis mirror" `
@@ -98,12 +89,9 @@ try {
 
     & gh release upload $mirrorTag @assets --repo $ghRepo --clobber
     if ($LASTEXITCODE -ne 0) { throw "gh release upload failed." }
-
     Write-Log "[$fileName] Mirrored assets to $ghRepo (tag: $mirrorTag)"
 
     # ---- 4) マニフェスト更新 --------------------------------------
-    # ミラー先の固定ダウンロードURL (/releases/latest/download/ ではなく
-    # 明示タグURLを使い、アセット名にバージョンを含めることでScoopに更新を認識させる)
     $mirrorBase = "https://github.com/$ghRepo/releases/download/$mirrorTag"
 
     $json.version = $newVersion
@@ -116,6 +104,40 @@ try {
 
     $json | ConvertTo-Json -Depth 10 | Set-Content $jsonPath -Encoding Ascii
     Write-Log "[$fileName] Updated: $oldVersion -> $newVersion"
+
+    # ---- 5) 古い世代のアセットを削除（$keepVersions 世代を残す）-----
+    $assetJson = & gh release view $mirrorTag --repo $ghRepo --json assets 2>$null
+    if ($LASTEXITCODE -eq 0 -and $assetJson) {
+        $allAssets = ($assetJson | ConvertFrom-Json).assets
+
+        $tagged = foreach ($a in $allAssets) {
+            if ($a.name -match 'PuTTY-([\d.]+)-ranvis-(\d{8})\.(win64\.7z|win32\.zip)') {
+                [PSCustomObject]@{
+                    Name    = $a.name
+                    VerKey  = "$($matches[1]).$($matches[2])"
+                    Date    = [int]$matches[2]
+                }
+            }
+        }
+
+        $keepKeys = $tagged | Sort-Object Date -Descending |
+                    Select-Object -ExpandProperty VerKey -Unique |
+                    Select-Object -First $keepVersions
+
+        $toDelete = $tagged | Where-Object { $keepKeys -notcontains $_.VerKey }
+
+        foreach ($d in $toDelete) {
+            & gh release delete-asset $mirrorTag $d.Name --repo $ghRepo --yes *>&1 | Out-Null
+            if ($LASTEXITCODE -eq 0) {
+                Write-Log "[$fileName] Deleted old asset: $($d.Name)"
+            } else {
+                Write-Log "[$fileName] WARNING: failed to delete asset: $($d.Name)"
+            }
+        }
+    } else {
+        Write-Log "[$fileName] WARNING: could not enumerate assets for cleanup."
+    }
+
     Write-Log "--------------------------------------------------"
 } catch {
     Write-Log "$date - [PuTTY-ranvis] Critical Error: $_"

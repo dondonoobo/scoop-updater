@@ -1,0 +1,59 @@
+name: Update Scoop Manifests
+
+on:
+  schedule:
+    - cron: '0 */2 * * *'   # 2時間ごと
+  workflow_dispatch:
+
+jobs:
+  update:
+    runs-on: windows-latest
+    steps:
+      # 1) スクリプトリポジトリ(B)を取得
+      - name: Checkout updater (this repo)
+        uses: actions/checkout@v4
+        with:
+          path: updater
+
+      # 2) マニフェストリポジトリ(A)を manifest/ に取得
+      #    別リポジトリへの push には PAT が必要（後述）
+      - name: Checkout manifest repo (A)
+        uses: actions/checkout@v4
+        with:
+          repository: dondonoobo/my-scoop-bucket   # ← リポジトリA
+          path: manifest
+          token: ${{ secrets.MANIFEST_PUSH_TOKEN }}
+
+      # 3) Scoop と checkver.ps1 を用意
+      - name: Install Scoop
+        shell: powershell
+        run: |
+          iex "& {$(irm get.scoop.sh)} -RunAsAdmin"
+          echo "$env:USERPROFILE\scoop\shims" | Out-File -FilePath $env:GITHUB_PATH -Append -Encoding utf8
+
+      # 4) 各更新スクリプトを実行
+      - name: Run updaters
+        shell: powershell
+        env:
+          MANIFEST_REPO_DIR: ${{ github.workspace }}\manifest
+          GH_REPO: dondonoobo/my-scoop-bucket          # ミラー先=リポジトリA
+          GITHUB_TOKEN: ${{ secrets.MANIFEST_PUSH_TOKEN }}  # gh CLI / release 用
+        run: |
+          & "$env:GITHUB_WORKSPACE\updater\scripts\update-fbneo.ps1"
+          & "$env:GITHUB_WORKSPACE\updater\scripts\update-eden.ps1"
+          & "$env:GITHUB_WORKSPACE\updater\scripts\update-putty-ranvis.ps1"
+
+      # 5) マニフェストリポジトリ(A)へコミット＆プッシュ
+      - name: Commit & push manifest changes
+        shell: bash
+        working-directory: manifest
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          if [[ -n "$(git status --porcelain)" ]]; then
+            git add -A
+            git commit -m "chore: auto-update manifests ($(date -u +%Y-%m-%dT%H:%MZ))"
+            git push
+          else
+            echo "No changes."
+          fi

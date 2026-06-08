@@ -1,21 +1,20 @@
 # scripts/update-eden.ps1
-# Eden Nightly 専用 マニフェスト更新スクリプト
-# version は "timestamp.hash" 形式。URL に $version 全体と末尾の $commit(hash) を使用する。
+# Eden Nightly マニフェスト更新（2リポジトリ構成対応）
 
 $ProgressPreference = 'SilentlyContinue'
+. "$PSScriptRoot\_common.ps1"
 
-if ($env:GITHUB_WORKSPACE) {
-    $bucketPath     = "$env:GITHUB_WORKSPACE\bucket"
-    $checkverScript = "$env:USERPROFILE\scoop\apps\scoop\current\bin\checkver.ps1"
-} else {
-    $bucketPath     = "$env:SCOOP\buckets\my-bucket"
-    $checkverScript = "$env:SCOOP\apps\scoop\current\bin\checkver.ps1"
-}
+$repoRoot       = Get-ManifestRepoRoot
+$checkverScript = Get-CheckverScript
 
-$jsonPath = "$bucketPath\eden-nightly.json"
-$logFile  = "$bucketPath\update_log.txt"
-$date     = Get-Date -Format "yyyy/MM/dd HH:mm:ss"
-$fileName = Split-Path $jsonPath -Leaf
+$bucketPath = Join-Path $repoRoot "bucket"
+$logDir     = Join-Path $repoRoot "logs"
+$logFile    = Join-Path $logDir "update_log.txt"
+$jsonPath   = Join-Path $bucketPath "eden-nightly.json"
+$date       = Get-Date -Format "yyyy/MM/dd HH:mm:ss"
+$fileName   = Split-Path $jsonPath -Leaf
+
+if (-not (Test-Path $logDir)) { New-Item -ItemType Directory -Path $logDir | Out-Null }
 
 try {
     "$date - [Eden] Update Check Started" | Out-File $logFile -Append -Encoding UTF8
@@ -30,7 +29,6 @@ try {
         if ($newVersion -ne $oldVersion) {
             $json.version = $newVersion
 
-            # version 末尾の 16進ハッシュ部分を $commit として抽出
             $commit = if ($newVersion -match '\.([0-9a-f]+)$') { $matches[1] } else { $newVersion }
 
             $urlTemplate = $json.autoupdate.architecture.'64bit'.url

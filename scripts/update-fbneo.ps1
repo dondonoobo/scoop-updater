@@ -1,21 +1,20 @@
 # scripts/update-fbneo.ps1
-# FinalBurn Neo (Nightly) 専用 マニフェスト更新スクリプト
-# URLは latest タグ固定のため、version(コミットハッシュ)の更新と hash の除去のみ行う。
+# FinalBurn Neo (Nightly) マニフェスト更新（2リポジトリ構成対応）
 
 $ProgressPreference = 'SilentlyContinue'
+. "$PSScriptRoot\_common.ps1"
 
-if ($env:GITHUB_WORKSPACE) {
-    $bucketPath     = "$env:GITHUB_WORKSPACE\bucket"
-    $checkverScript = "$env:USERPROFILE\scoop\apps\scoop\current\bin\checkver.ps1"
-} else {
-    $bucketPath     = "$env:SCOOP\buckets\my-bucket"
-    $checkverScript = "$env:SCOOP\apps\scoop\current\bin\checkver.ps1"
-}
+$repoRoot       = Get-ManifestRepoRoot          # ← マニフェストリポジトリ(A)
+$checkverScript = Get-CheckverScript
 
-$jsonPath = "$bucketPath\fbneo-nightly.json"
-$logFile  = "$bucketPath\update_log.txt"
-$date     = Get-Date -Format "yyyy/MM/dd HH:mm:ss"
-$fileName = Split-Path $jsonPath -Leaf
+$bucketPath = Join-Path $repoRoot "bucket"
+$logDir     = Join-Path $repoRoot "logs"
+$logFile    = Join-Path $logDir "update_log.txt"
+$jsonPath   = Join-Path $bucketPath "fbneo-nightly.json"
+$date       = Get-Date -Format "yyyy/MM/dd HH:mm:ss"
+$fileName   = Split-Path $jsonPath -Leaf
+
+if (-not (Test-Path $logDir)) { New-Item -ItemType Directory -Path $logDir | Out-Null }
 
 try {
     "$date - [FBNeo] Update Check Started" | Out-File $logFile -Append -Encoding UTF8
@@ -30,7 +29,6 @@ try {
         if ($newVersion -ne $oldVersion) {
             $json.version = $newVersion
 
-            # URLは固定。hashプロパティがあれば除去（このマニフェストには元々無いが念のため）
             foreach ($arch in '64bit', '32bit') {
                 if ($json.architecture.$arch) {
                     $json.architecture.$arch.psobject.Properties.Remove('hash')
