@@ -48,13 +48,28 @@ try {
     $json       = Get-Content $jsonPath -Raw | ConvertFrom-Json
     $oldVersion = $json.version
 
-    if ($newVersion -eq $oldVersion) {
-        Write-Log "[$fileName] $newVersion (Up to date)"
+    # 期待されるミラーアセット名
+    $expectedName64 = "PuTTY-$ver-ranvis-$dateStamp.win64.7z"
+
+    # ミラー先に当該アセットが既に存在するか確認
+    $assetExists = $false
+    $assetJson = & gh release view $mirrorTag --repo $ghRepo --json assets 2>$null
+    if ($LASTEXITCODE -eq 0 -and $assetJson) {
+        $names = ($assetJson | ConvertFrom-Json).assets.name
+        if ($names -contains $expectedName64) { $assetExists = $true }
+    }
+
+    if (($newVersion -eq $oldVersion) -and $assetExists) {
+        Write-Log "[$fileName] $newVersion (Up to date, mirror exists)"
         Write-Log "--------------------------------------------------"
         return
     }
 
-    Write-Log "[$fileName] New version detected: $oldVersion -> $newVersion"
+    if ($newVersion -eq $oldVersion) {
+        Write-Log "[$fileName] $newVersion (version same, but mirror missing -> re-mirroring)"
+    } else {
+        Write-Log "[$fileName] New version detected: $oldVersion -> $newVersion"
+    }
 
     # ---- 2) zip/7z を取得 -----------------------------------------
     if (Test-Path $workDir) { Remove-Item $workDir -Recurse -Force }
