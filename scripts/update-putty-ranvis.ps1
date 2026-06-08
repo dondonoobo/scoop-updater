@@ -6,7 +6,9 @@
 #   GITHUB_TOKEN       : gh CLI 用トークン（A への release 書き込み権限が必要）
 #   MANIFEST_REPO_DIR  : チェックアウト済みマニフェストリポジトリ(A)のローカルパス
 
-$ErrorActionPreference = 'Stop'
+# ErrorActionPreference は 'Continue' にしておき（デフォルト）、
+# PowerShell cmdlets には -ErrorAction Stop を付けてエラー検知する。
+# gh などのネイティブコマンドは $LASTEXITCODE で判定する。
 $ProgressPreference    = 'SilentlyContinue'
 . "$PSScriptRoot\_common.ps1"
 
@@ -25,7 +27,7 @@ $date       = Get-Date -Format "yyyy/MM/dd HH:mm:ss"
 $fileName   = Split-Path $jsonPath -Leaf
 $workDir    = Join-Path ([System.IO.Path]::GetTempPath()) "putty-ranvis-mirror"
 
-if (-not (Test-Path $logDir)) { New-Item -ItemType Directory -Path $logDir | Out-Null }
+if (-not (Test-Path $logDir)) { New-Item -ItemType Directory -Path $logDir -ErrorAction Stop | Out-Null }
 
 try {
     Write-Info "$date - [PuTTY-ranvis] Mirror & Update Started" $logFile
@@ -35,7 +37,7 @@ try {
     # ---- 1) サイトから最新版情報を取得 -----------------------------
     $pageUrl = 'https://www.ranvis.com/putty'
     Write-Info "[$fileName] Fetching $pageUrl ..." $logFile
-    $html    = (Invoke-WebRequest -Uri $pageUrl -UserAgent $browserUA -UseBasicParsing).Content
+    $html    = (Invoke-WebRequest -Uri $pageUrl -UserAgent $browserUA -UseBasicParsing -ErrorAction Stop).Content
 
     $m64 = [regex]::Match($html, 'PuTTY-(?<ver>[\d.]+)-ranvis-(?<date>\d{8})\.win64\.7z')
     $m32 = [regex]::Match($html, 'PuTTY-(?<ver>[\d.]+)-ranvis-(?<date>\d{8})\.win32\.zip')
@@ -45,7 +47,7 @@ try {
     $dateStamp  = $m64.Groups['date'].Value
     $newVersion = "$ver.$dateStamp"
 
-    $json       = Get-Content $jsonPath -Raw | ConvertFrom-Json
+    $json       = Get-Content $jsonPath -Raw -ErrorAction Stop | ConvertFrom-Json
     $oldVersion = $json.version
 
     Write-Info "[$fileName] Current=$oldVersion  Latest=$newVersion" $logFile
@@ -55,10 +57,13 @@ try {
 
     # ミラー先に当該アセットが既に存在するか確認
     $assetExists = $false
+    # $LASTEXITCODE を正しく取るため、2> $null で stderr を捨てる
     $assetJson = & gh release view $mirrorTag --repo $ghRepo --json assets 2>$null
     if ($LASTEXITCODE -eq 0 -and $assetJson) {
         $names = ($assetJson | ConvertFrom-Json).assets.name
         if ($names -contains $expectedName64) { $assetExists = $true }
+    } else {
+        Write-Info "[$fileName] Release '$mirrorTag' does not exist yet (will create)" $logFile
     }
 
     if (($newVersion -eq $oldVersion) -and $assetExists) {
@@ -74,8 +79,8 @@ try {
     }
 
     # ---- 2) zip/7z を取得 -----------------------------------------
-    if (Test-Path $workDir) { Remove-Item $workDir -Recurse -Force }
-    New-Item -ItemType Directory -Path $workDir | Out-Null
+    if (Test-Path $workDir) { Remove-Item $workDir -Recurse -Force -ErrorAction Stop }
+    New-Item -ItemType Directory -Path $workDir -ErrorAction Stop | Out-Null
 
     $srcBase = 'https://www.ranvis.com/downloads'
     $assets  = @()
@@ -83,7 +88,7 @@ try {
     $name64 = "PuTTY-$ver-ranvis-$dateStamp.win64.7z"
     $path64 = Join-Path $workDir $name64
     Write-Info "[$fileName] Downloading $name64 ..." $logFile
-    Invoke-WebRequest -Uri "$srcBase/$name64" -UserAgent $browserUA -OutFile $path64 -UseBasicParsing
+    Invoke-WebRequest -Uri "$srcBase/$name64" -UserAgent $browserUA -OutFile $path64 -UseBasicParsing -ErrorAction Stop
     $assets += $path64
 
     if ($m32.Success) {
@@ -92,23 +97,25 @@ try {
         $name32 = "PuTTY-$ver32-ranvis-$date32.win32.zip"
         $path32 = Join-Path $workDir $name32
         Write-Info "[$fileName] Downloading $name32 ..." $logFile
-        Invoke-WebRequest -Uri "$srcBase/$name32" -UserAgent $browserUA -OutFile $path32 -UseBasicParsing
+        Invoke-WebRequest -Uri "$srcBase/$name32" -UserAgent $browserUA -OutFile $path32 -UseBasicParsing -ErrorAction Stop
         $assets += $path32
     }
 
     # ---- 3) GitHubリリース(固定タグ)へミラー（ミラー先＝リポジトリA）---
-    & gh release view $mirrorTag --repo $ghRepo *>&1 | Out-Null
+    & gh release view $mirrorTag --repo $ghRepo 2>$null
     $relExists = ($LASTEXITCODE -eq 0)
     if (-not $relExists) {
         Write-Info "[$fileName] Creating release tag $mirrorTag ..." $logFile
         & gh release create $mirrorTag --repo $ghRepo `
             --title "PuTTY-ranvis mirror" `
-            --notes "Auto-mirrored from https://www.ranvis.com/putty (User-Agent workaround for Scoop)."
+            --notes "Auto-mirrored from https://www.ranvis.com/putty (User-Agent workaround for Scoop)." `
+            2>&1 | Out-String | Write-Debug
         if ($LASTEXITCODE -ne 0) { throw "gh release create failed." }
     }
 
     Write-Info "[$fileName] Uploading assets to $ghRepo (tag: $mirrorTag) ..." $logFile
-    & gh release upload $mirrorTag @assets --repo $ghRepo --clobber
+    $uploadCmd = @('release', 'upload', $mirrorTag, '--repo', $ghRepo, '--clobber') + $assets
+    & gh $uploadCmd 2>&1 | Out-String | Write-Debug
     if ($LASTEXITCODE -ne 0) { throw "gh release upload failed." }
     Write-Info "[$fileName] Mirrored assets to $ghRepo (tag: $mirrorTag)" $logFile
 
@@ -123,7 +130,7 @@ try {
         $json.architecture.'32bit'.psobject.Properties.Remove('hash')
     }
 
-    $json | ConvertTo-Json -Depth 10 | Set-Content $jsonPath -Encoding Ascii
+    $json | ConvertTo-Json -Depth 10 | Set-Content $jsonPath -Encoding Ascii -ErrorAction Stop
     Write-Info "[$fileName] Updated: $oldVersion -> $newVersion" $logFile
 
     # ---- 5) 古い世代のアセットを削除（$keepVersions 世代を残す）-----
@@ -148,7 +155,7 @@ try {
         $toDelete = $tagged | Where-Object { $keepKeys -notcontains $_.VerKey }
 
         foreach ($d in $toDelete) {
-            & gh release delete-asset $mirrorTag $d.Name --repo $ghRepo --yes *>&1 | Out-Null
+            & gh release delete-asset $mirrorTag $d.Name --repo $ghRepo --yes 2>$null
             if ($LASTEXITCODE -eq 0) {
                 Write-Info "[$fileName] Deleted old asset: $($d.Name)" $logFile
             } else {
