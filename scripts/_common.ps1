@@ -20,3 +20,15 @@ function Get-CheckverScript {
         return "$env:SCOOP\apps\scoop\current\bin\checkver.ps1"
     }
 }
+
+# 標準出力とログファイルの両方に書き込む
+function Write-Info {
+    param(
+        [string]$Message,
+        [string]$LogFile
+    )
+    Write-Host $Message
+    if ($LogFile) {
+        $Message | Out-File $LogFile -Append -Encoding UTF8
+    }
+}

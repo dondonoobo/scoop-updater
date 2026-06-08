@@ -17,7 +17,7 @@ $fileName   = Split-Path $jsonPath -Leaf
 if (-not (Test-Path $logDir)) { New-Item -ItemType Directory -Path $logDir | Out-Null }
 
 try {
-    "$date - [Eden] Update Check Started" | Out-File $logFile -Append -Encoding UTF8
+    Write-Info "$date - [Eden] Update Check Started" $logFile
 
     $checkOutput = & $checkverScript $jsonPath -NoColors *>&1 | Out-String
 
@@ -37,15 +37,18 @@ try {
             $json.architecture.'64bit'.psobject.Properties.Remove('hash')
 
             $json | ConvertTo-Json -Depth 10 | Set-Content $jsonPath -Encoding Ascii
-            "[$fileName] Updated: $oldVersion -> $newVersion" | Out-File $logFile -Append -Encoding UTF8
+            Write-Info "[$fileName] Updated: $oldVersion -> $newVersion" $logFile
         } else {
-            "[$fileName] $newVersion (Up to date)" | Out-File $logFile -Append -Encoding UTF8
+            Write-Info "[$fileName] $newVersion (Up to date)" $logFile
         }
     } else {
-        "[$fileName] WARNING: could not parse checkver output" | Out-File $logFile -Append -Encoding UTF8
+        Write-Info "[$fileName] WARNING: could not parse checkver output" $logFile
+        Write-Info "[$fileName] checkver raw output: $checkOutput" $logFile
     }
 
-    "--------------------------------------------------" | Out-File $logFile -Append -Encoding UTF8
+    Write-Info "--------------------------------------------------" $logFile
 } catch {
-    "$date - [Eden] Critical Error: $_" | Out-File $logFile -Append -Encoding UTF8
+    Write-Info "$date - [Eden] ERROR: $_" $logFile
+    Write-Host "::error::[Eden] $_"
+    throw
 }

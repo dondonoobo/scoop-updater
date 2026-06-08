@@ -31,7 +31,7 @@ jobs:
           iex "& {$(irm get.scoop.sh)} -RunAsAdmin"
           echo "$env:USERPROFILE\scoop\shims" | Out-File -FilePath $env:GITHUB_PATH -Append -Encoding utf8
 
-      # 4) 各更新スクリプトを実行
+      # 4) 各更新スクリプトを実行（1つ失敗しても他は続行し、最後にまとめて報告）
       - name: Run updaters
         shell: powershell
         env:
@@ -39,9 +39,37 @@ jobs:
           GH_REPO: dondonoobo/my-scoop-bucket          # ミラー先=リポジトリA
           GITHUB_TOKEN: ${{ secrets.MANIFEST_PUSH_TOKEN }}  # gh CLI / release 用
         run: |
-          & "$env:GITHUB_WORKSPACE\updater\scripts\update-fbneo.ps1"
-          & "$env:GITHUB_WORKSPACE\updater\scripts\update-eden.ps1"
-          & "$env:GITHUB_WORKSPACE\updater\scripts\update-putty-ranvis.ps1"
+          $ErrorActionPreference = 'Continue'
+          $scripts = @(
+            "$env:GITHUB_WORKSPACE\updater\scripts\update-fbneo.ps1",
+            "$env:GITHUB_WORKSPACE\updater\scripts\update-eden.ps1",
+            "$env:GITHUB_WORKSPACE\updater\scripts\update-putty-ranvis.ps1"
+          )
+          $failed = @()
+          foreach ($script in $scripts) {
+            $name = Split-Path $script -Leaf
+            Write-Host "========== Running $name =========="
+            try {
+              & $script
+              if ($LASTEXITCODE -and $LASTEXITCODE -ne 0) {
+                throw "Script exited with code $LASTEXITCODE"
+              }
+              Write-Host "========== $name completed OK =========="
+            } catch {
+              Write-Host "::error::$name failed: $_"
+              Write-Host "========== $name FAILED =========="
+              $failed += "$name : $_"
+            }
+          }
+          if ($failed.Count -gt 0) {
+            Write-Host ""
+            Write-Host "::error::The following updater(s) failed:"
+            foreach ($f in $failed) {
+              Write-Host "  - $f"
+            }
+            exit 1
+          }
+          Write-Host "All updaters completed successfully."
 
       # 5) マニフェストリポジトリ(A)へコミット＆プッシュ
       - name: Commit & push manifest changes
