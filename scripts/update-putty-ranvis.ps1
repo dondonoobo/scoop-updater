@@ -21,8 +21,7 @@ $ghRepo       = $env:GH_REPO
 $repoRoot   = Get-ManifestRepoRoot
 $updaterRoot = Split-Path $PSScriptRoot -Parent
 $bucketPath = Join-Path $repoRoot "bucket"
-$logFolderName = if ($env:GITHUB_ACTIONS) { "logs" } else { "local_logs" }
-$logDir     = Join-Path $updaterRoot $logFolderName
+$logDir     = Join-Path $updaterRoot "logs"
 $logFile    = Join-Path $logDir "update_log.txt"
 $jsonPath   = Join-Path $bucketPath "putty-ranvis.json"
 $date       = Get-Date -Format "yyyy/MM/dd HH:mm:ss"
@@ -124,12 +123,15 @@ try {
     # ---- 4) マニフェスト更新 --------------------------------------
     $mirrorBase = "https://github.com/$ghRepo/releases/download/$mirrorTag"
 
+    Write-Info "[$fileName] Calculating hashes..." $logFile
     $json.version = $newVersion
     $json.architecture.'64bit'.url = "$mirrorBase/$name64"
-    $json.architecture.'64bit'.psobject.Properties.Remove('hash')
+    $hash64 = (Get-FileHash $path64 -Algorithm SHA256).Hash
+    $json.architecture.'64bit' | Add-Member -MemberType NoteProperty -Name 'hash' -Value $hash64 -Force
     if ($m32.Success) {
         $json.architecture.'32bit'.url = "$mirrorBase/$name32"
-        $json.architecture.'32bit'.psobject.Properties.Remove('hash')
+        $hash32 = (Get-FileHash $path32 -Algorithm SHA256).Hash
+        $json.architecture.'32bit' | Add-Member -MemberType NoteProperty -Name 'hash' -Value $hash32 -Force
     }
 
     $json | ConvertTo-Json -Depth 10 | Set-Content $jsonPath -Encoding Ascii -ErrorAction Stop

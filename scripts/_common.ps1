@@ -21,6 +21,14 @@ function Get-CheckverScript {
     }
 }
 
+function Get-CheckhashesScript {
+    if ($env:GITHUB_WORKSPACE) {
+        return "$env:USERPROFILE\scoop\apps\scoop\current\bin\checkhashes.ps1"
+    } else {
+        return "$env:SCOOP\apps\scoop\current\bin\checkhashes.ps1"
+    }
+}
+
 # 標準出力とログファイルの両方に書き込む
 function Write-Info {
     param(

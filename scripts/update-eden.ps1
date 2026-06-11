@@ -9,8 +9,7 @@ $updaterRoot    = Split-Path $PSScriptRoot -Parent
 $checkverScript = Get-CheckverScript
 
 $bucketPath = Join-Path $repoRoot "bucket"
-$logFolderName = if ($env:GITHUB_ACTIONS) { "logs" } else { "local_logs" }
-$logDir     = Join-Path $updaterRoot $logFolderName
+$logDir     = Join-Path $updaterRoot "logs"
 $logFile    = Join-Path $logDir "update_log.txt"
 $jsonPath   = Join-Path $bucketPath "eden-nightly.json"
 $date       = Get-Date -Format "yyyy/MM/dd HH:mm:ss"
@@ -36,9 +35,12 @@ try {
             $urlTemplate = $json.autoupdate.architecture.'64bit'.url
             $newUrl = $urlTemplate.Replace('$version', $newVersion).Replace('$commit', $commit)
             $json.architecture.'64bit'.url = $newUrl
-            $json.architecture.'64bit'.psobject.Properties.Remove('hash')
 
             $json | ConvertTo-Json -Depth 10 | Set-Content $jsonPath -Encoding Ascii
+
+            $checkhashesScript = Get-CheckhashesScript
+            Write-Info "[$fileName] Calculating hashes..." $logFile
+            & $checkhashesScript $jsonPath *>&1 | Out-Null
             Write-Info "[$fileName] Updated: $oldVersion -> $newVersion" $logFile
         } else {
             Write-Info "[$fileName] $newVersion (Up to date)" $logFile

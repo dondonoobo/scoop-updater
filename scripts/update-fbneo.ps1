@@ -9,8 +9,7 @@ $updaterRoot    = Split-Path $PSScriptRoot -Parent
 $checkverScript = Get-CheckverScript
 
 $bucketPath = Join-Path $repoRoot "bucket"
-$logFolderName = if ($env:GITHUB_ACTIONS) { "logs" } else { "local_logs" }
-$logDir     = Join-Path $updaterRoot $logFolderName
+$logDir     = Join-Path $updaterRoot "logs"
 $logFile    = Join-Path $logDir "update_log.txt"
 $jsonPath   = Join-Path $bucketPath "fbneo-nightly.json"
 $date       = Get-Date -Format "yyyy/MM/dd HH:mm:ss"
@@ -31,13 +30,11 @@ try {
         if ($newVersion -ne $oldVersion) {
             $json.version = $newVersion
 
-            foreach ($arch in '64bit', '32bit') {
-                if ($json.architecture.$arch) {
-                    $json.architecture.$arch.psobject.Properties.Remove('hash')
-                }
-            }
-
             $json | ConvertTo-Json -Depth 10 | Set-Content $jsonPath -Encoding Ascii
+
+            $checkhashesScript = Get-CheckhashesScript
+            Write-Info "[$fileName] Calculating hashes..." $logFile
+            & $checkhashesScript $jsonPath *>&1 | Out-Null
             Write-Info "[$fileName] Updated: $oldVersion -> $newVersion" $logFile
         } else {
             Write-Info "[$fileName] $newVersion (Up to date)" $logFile
