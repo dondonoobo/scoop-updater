@@ -38,7 +38,21 @@ try {
     # ---- 1) サイトから最新版情報を取得 -----------------------------
     $pageUrl = 'https://www.ranvis.com/putty'
     Write-Info "[$fileName] Fetching $pageUrl ..." $logFile
-    $html    = (Invoke-WebRequest -Uri $pageUrl -UserAgent $browserUA -UseBasicParsing -ErrorAction Stop).Content
+
+    $maxRetries = 3
+    $retryCount = 0
+    $html = $null
+    while ($retryCount -lt $maxRetries) {
+        try {
+            $html = (Invoke-WebRequest -Uri $pageUrl -UserAgent $browserUA -UseBasicParsing -ErrorAction Stop).Content
+            break
+        } catch {
+            $retryCount++
+            Write-Info "[$fileName] Fetch failed: $_. Retrying ($retryCount/$maxRetries)..." $logFile
+            if ($retryCount -eq $maxRetries) { throw }
+            Start-Sleep -Seconds 5
+        }
+    }
 
     $m64 = [regex]::Match($html, 'PuTTY-(?<ver>[\d.]+)-ranvis-(?<date>\d{8})\.win64\.7z')
     $m32 = [regex]::Match($html, 'PuTTY-(?<ver>[\d.]+)-ranvis-(?<date>\d{8})\.win32\.zip')
@@ -89,7 +103,18 @@ try {
     $name64 = "PuTTY-$ver-ranvis-$dateStamp.win64.7z"
     $path64 = Join-Path $workDir $name64
     Write-Info "[$fileName] Downloading $name64 ..." $logFile
-    Invoke-WebRequest -Uri "$srcBase/$name64" -UserAgent $browserUA -OutFile $path64 -UseBasicParsing -ErrorAction Stop
+    $retryCount = 0
+    while ($retryCount -lt $maxRetries) {
+        try {
+            Invoke-WebRequest -Uri "$srcBase/$name64" -UserAgent $browserUA -OutFile $path64 -UseBasicParsing -ErrorAction Stop
+            break
+        } catch {
+            $retryCount++
+            Write-Info "[$fileName] Download failed: $_. Retrying ($retryCount/$maxRetries)..." $logFile
+            if ($retryCount -eq $maxRetries) { throw }
+            Start-Sleep -Seconds 5
+        }
+    }
     $assets += $path64
 
     if ($m32.Success) {
@@ -98,7 +123,18 @@ try {
         $name32 = "PuTTY-$ver32-ranvis-$date32.win32.zip"
         $path32 = Join-Path $workDir $name32
         Write-Info "[$fileName] Downloading $name32 ..." $logFile
-        Invoke-WebRequest -Uri "$srcBase/$name32" -UserAgent $browserUA -OutFile $path32 -UseBasicParsing -ErrorAction Stop
+        $retryCount = 0
+        while ($retryCount -lt $maxRetries) {
+            try {
+                Invoke-WebRequest -Uri "$srcBase/$name32" -UserAgent $browserUA -OutFile $path32 -UseBasicParsing -ErrorAction Stop
+                break
+            } catch {
+                $retryCount++
+                Write-Info "[$fileName] Download failed: $_. Retrying ($retryCount/$maxRetries)..." $logFile
+                if ($retryCount -eq $maxRetries) { throw }
+                Start-Sleep -Seconds 5
+            }
+        }
         $assets += $path32
     }
 
