@@ -5,6 +5,9 @@ on:
     - cron: '0 */2 * * *'   # 2時間ごと
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   update:
     runs-on: windows-latest
