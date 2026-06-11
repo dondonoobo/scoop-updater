@@ -107,17 +107,16 @@ try {
     $relExists = ($LASTEXITCODE -eq 0)
     if (-not $relExists) {
         Write-Info "[$fileName] Creating release tag $mirrorTag ..." $logFile
-        & gh release create $mirrorTag --repo $ghRepo `
-            --title "PuTTY-ranvis mirror" `
-            --notes "Auto-mirrored from https://www.ranvis.com/putty (User-Agent workaround for Scoop)." `
-            2>&1 | Out-String | Write-Debug
-        if ($LASTEXITCODE -ne 0) { throw "gh release create failed." }
+        $createOut = & gh release create $mirrorTag --repo $ghRepo --title "PuTTY-ranvis mirror" --notes "Auto-mirrored from https://www.ranvis.com/putty (User-Agent workaround for Scoop)." 2>&1 | Out-String
+        Write-Info "[$fileName] gh create output: $createOut" $logFile
+        if ($LASTEXITCODE -ne 0) { throw "gh release create failed. Output: $createOut" }
     }
 
     Write-Info "[$fileName] Uploading assets to $ghRepo (tag: $mirrorTag) ..." $logFile
-    $uploadCmd = @('release', 'upload', $mirrorTag, '--repo', $ghRepo, '--clobber') + $assets
-    & gh $uploadCmd 2>&1 | Out-String | Write-Debug
-    if ($LASTEXITCODE -ne 0) { throw "gh release upload failed." }
+    $ghArgs = @('release', 'upload', $mirrorTag) + $assets + @('--repo', $ghRepo, '--clobber')
+    $uploadOut = & gh $ghArgs 2>&1 | Out-String
+    Write-Info "[$fileName] gh upload output: $uploadOut" $logFile
+    if ($LASTEXITCODE -ne 0) { throw "gh release upload failed. Output: $uploadOut" }
     Write-Info "[$fileName] Mirrored assets to $ghRepo (tag: $mirrorTag)" $logFile
 
     # ---- 4) マニフェスト更新 --------------------------------------
