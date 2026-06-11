@@ -19,8 +19,10 @@ $browserUA    = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (K
 $ghRepo       = $env:GH_REPO
 
 $repoRoot   = Get-ManifestRepoRoot
+$updaterRoot = Split-Path $PSScriptRoot -Parent
 $bucketPath = Join-Path $repoRoot "bucket"
-$logDir     = Join-Path $repoRoot "logs"
+$logFolderName = if ($env:GITHUB_ACTIONS) { "logs" } else { "local_logs" }
+$logDir     = Join-Path $updaterRoot $logFolderName
 $logFile    = Join-Path $logDir "update_log.txt"
 $jsonPath   = Join-Path $bucketPath "putty-ranvis.json"
 $date       = Get-Date -Format "yyyy/MM/dd HH:mm:ss"

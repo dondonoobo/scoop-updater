@@ -5,10 +5,12 @@ $ProgressPreference = 'SilentlyContinue'
 . "$PSScriptRoot\_common.ps1"
 
 $repoRoot       = Get-ManifestRepoRoot
+$updaterRoot    = Split-Path $PSScriptRoot -Parent
 $checkverScript = Get-CheckverScript
 
 $bucketPath = Join-Path $repoRoot "bucket"
-$logDir     = Join-Path $repoRoot "logs"
+$logFolderName = if ($env:GITHUB_ACTIONS) { "logs" } else { "local_logs" }
+$logDir     = Join-Path $updaterRoot $logFolderName
 $logFile    = Join-Path $logDir "update_log.txt"
 $jsonPath   = Join-Path $bucketPath "eden-nightly.json"
 $date       = Get-Date -Format "yyyy/MM/dd HH:mm:ss"
