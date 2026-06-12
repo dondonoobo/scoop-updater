@@ -30,15 +30,19 @@ try {
         if ($newVersion -ne $oldVersion) {
             $json.version = $newVersion
 
-            $json | ConvertTo-Json -Depth 10 | Set-Content $jsonPath -Encoding Ascii
-
-            $checkhashesScript = Get-CheckhashesScript
             Write-Info "[$fileName] Calculating hashes..." $logFile
-            & $checkhashesScript $jsonPath *>&1 | Out-Null
+            foreach ($arch in '64bit', '32bit') {
+                if ($json.architecture.$arch -and $json.architecture.$arch.url) {
+                    $url  = $json.architecture.$arch.url
+                    $hash = Get-RemoteSha256 -Url $url
+                    $json.architecture.$arch | Add-Member -MemberType NoteProperty -Name 'hash' -Value $hash -Force
+                }
+            }
+
+            $json | ConvertTo-Json -Depth 10 | Set-Content $jsonPath -Encoding Ascii
             Write-Info "[$fileName] Updated: $oldVersion -> $newVersion" $logFile
-        } else {
-            Write-Info "[$fileName] $newVersion (Up to date)" $logFile
         }
+
     } else {
         Write-Info "[$fileName] WARNING: could not parse checkver output" $logFile
         Write-Info "[$fileName] checkver raw output: $checkOutput" $logFile

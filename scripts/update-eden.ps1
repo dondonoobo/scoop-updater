@@ -29,22 +29,20 @@ try {
 
         if ($newVersion -ne $oldVersion) {
             $json.version = $newVersion
-
             $commit = if ($newVersion -match '\.([0-9a-f]+)$') { $matches[1] } else { $newVersion }
 
             $urlTemplate = $json.autoupdate.architecture.'64bit'.url
             $newUrl = $urlTemplate.Replace('$version', $newVersion).Replace('$commit', $commit)
             $json.architecture.'64bit'.url = $newUrl
 
-            $json | ConvertTo-Json -Depth 10 | Set-Content $jsonPath -Encoding Ascii
-
-            $checkhashesScript = Get-CheckhashesScript
             Write-Info "[$fileName] Calculating hashes..." $logFile
-            & $checkhashesScript $jsonPath *>&1 | Out-Null
+            $hash = Get-RemoteSha256 -Url $newUrl
+            $json.architecture.'64bit' | Add-Member -MemberType NoteProperty -Name 'hash' -Value $hash -Force
+
+            $json | ConvertTo-Json -Depth 10 | Set-Content $jsonPath -Encoding Ascii
             Write-Info "[$fileName] Updated: $oldVersion -> $newVersion" $logFile
-        } else {
-            Write-Info "[$fileName] $newVersion (Up to date)" $logFile
         }
+
     } else {
         Write-Info "[$fileName] WARNING: could not parse checkver output" $logFile
         Write-Info "[$fileName] checkver raw output: $checkOutput" $logFile

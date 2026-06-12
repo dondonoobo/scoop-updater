@@ -29,6 +29,23 @@ function Get-CheckhashesScript {
     }
 }
 
+# 指定URLをダウンロードして SHA256 ハッシュ(小文字)を返す
+function Get-RemoteSha256 {
+    param(
+        [Parameter(Mandatory)][string]$Url,
+        [string]$UserAgent
+    )
+    $tmp = Join-Path ([System.IO.Path]::GetTempPath()) ([System.IO.Path]::GetRandomFileName())
+    try {
+        $iwrArgs = @{ Uri = $Url; OutFile = $tmp; UseBasicParsing = $true; ErrorAction = 'Stop' }
+        if ($UserAgent) { $iwrArgs['UserAgent'] = $UserAgent }
+        Invoke-WebRequest @iwrArgs
+        return (Get-FileHash $tmp -Algorithm SHA256).Hash.ToLower()
+    } finally {
+        if (Test-Path $tmp) { Remove-Item $tmp -Force -ErrorAction SilentlyContinue }
+    }
+}
+
 # 標準出力とログファイルの両方に書き込む
 function Write-Info {
     param(
