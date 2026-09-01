@@ -1,8 +1,7 @@
 name: Update Scoop Manifests
 
 on:
-  schedule:
-    - cron: '23 * * * *'   # 毎時23分頃に実行する
+  # schedule は外部の cron-job.org から叩くため不要
   workflow_dispatch:
 
 permissions:
