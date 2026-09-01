@@ -11,6 +11,14 @@ jobs:
   update:
     runs-on: windows-latest
     steps:
+      # ランダムに 5〜90 秒待機して他のリクエストとの衝突を完全回避
+      - name: Random Jitter Delay
+        shell: powershell
+        run: |
+          $delay = Get-Random -Minimum 5 -Maximum 90
+          Write-Host "Waiting for $delay seconds to avoid collision..."
+          Start-Sleep -Seconds $delay
+
       # 1) スクリプトリポジトリ(B)を取得
       - name: Checkout updater (this repo)
         uses: actions/checkout@v4
