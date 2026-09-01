@@ -76,6 +76,7 @@ jobs:
 
       # 5) マニフェストリポジトリ(A)へコミット＆プッシュ
       - name: Commit & push manifest changes
+        if: always() # ← エラーが起きても必ず実行する
         shell: bash
         working-directory: manifest
         run: |
@@ -91,6 +92,7 @@ jobs:
 
       # 6) アップデーターリポジトリのログをコミット＆プッシュ
       - name: Commit & push log changes
+        if: always() # ← エラーが起きても必ず実行する
         shell: bash
         working-directory: updater
         run: |
