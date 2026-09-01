@@ -2,7 +2,7 @@ name: Update Scoop Manifests
 
 on:
   schedule:
-    - cron: '0 */1 * * *'   # 1時間ごと
+    - cron: '23 * * * *'   # 毎時23分頃に実行する
   workflow_dispatch:
 
 permissions:
