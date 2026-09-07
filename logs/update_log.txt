@@ -8151,3 +8151,14 @@
 [putty-ranvis.json] Fetch failed: Unable to connect to the remote server. Retrying (2/3)...
 [putty-ranvis.json] Fetch failed: Unable to connect to the remote server. Retrying (3/3)...
 2026/09/07 13:25:16 - [PuTTY-ranvis] ERROR: Unable to connect to the remote server
+2026/09/07 14:25:14 - [FBNeo] Update Check Started
+[fbneo-nightly.json] Calculating hashes...
+[fbneo-nightly.json] Updated: b64120c -> The
+--------------------------------------------------
+2026/09/07 14:25:16 - [Eden] Update Check Started
+--------------------------------------------------
+2026/09/07 14:25:17 - [PuTTY-ranvis] Mirror & Update Started
+[putty-ranvis.json] Fetching https://www.ranvis.com/putty ...
+[putty-ranvis.json] Current=0.85.20260820  Latest=0.85.20260820
+[putty-ranvis.json] 0.85.20260820 (Up to date, mirror exists)
+--------------------------------------------------
