@@ -8695,3 +8695,14 @@
 [putty-ranvis.json] Current=0.85.20260820  Latest=0.85.20260820
 [putty-ranvis.json] 0.85.20260820 (Up to date, mirror exists)
 --------------------------------------------------
+2026/09/09 22:24:20 - [FBNeo] Update Check Started
+[fbneo-nightly.json] Calculating hashes...
+[fbneo-nightly.json] Updated: 3f3d1a5 -> 60c26be
+--------------------------------------------------
+2026/09/09 22:24:22 - [Eden] Update Check Started
+--------------------------------------------------
+2026/09/09 22:24:22 - [PuTTY-ranvis] Mirror & Update Started
+[putty-ranvis.json] Fetching https://www.ranvis.com/putty ...
+[putty-ranvis.json] Current=0.85.20260820  Latest=0.85.20260820
+[putty-ranvis.json] 0.85.20260820 (Up to date, mirror exists)
+--------------------------------------------------
