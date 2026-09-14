@@ -39,7 +39,11 @@ function Get-RemoteSha256 {
     try {
         $iwrArgs = @{ Uri = $Url; OutFile = $tmp; UseBasicParsing = $true; ErrorAction = 'Stop' }
         if ($UserAgent) { $iwrArgs['UserAgent'] = $UserAgent }
-        Invoke-WebRequest @iwrArgs
+        try {
+            Invoke-WebRequest @iwrArgs
+        } catch {
+            throw "Get-RemoteSha256 failed for URL '$Url': $_"
+        }
         return (Get-FileHash $tmp -Algorithm SHA256).Hash.ToLower()
     } finally {
         if (Test-Path $tmp) { Remove-Item $tmp -Force -ErrorAction SilentlyContinue }
