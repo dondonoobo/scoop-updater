@@ -11373,3 +11373,16 @@
 [putty-ranvis.json] Current=0.85.20260820  Latest=0.85.20260820
 [putty-ranvis.json] 0.85.20260820 (Up to date, mirror exists)
 --------------------------------------------------
+2026/09/20 21:24:45 - [FBNeo] Update Check Started
+--------------------------------------------------
+2026/09/20 21:24:46 - [Eden] Update Check Started
+[eden-nightly.json] New version detected: 1789847373.847e91c3a8 -> 1789934660.a277b62fe4
+[eden-nightly.json] Download URL: https://nightly.eden-emu.dev/v1789934660.a277b62fe4/Eden-Windows-a277b62fe4-amd64-clang-pgo.zip
+[eden-nightly.json] Calculating hashes...
+[eden-nightly.json] Updated: 1789847373.847e91c3a8 -> 1789934660.a277b62fe4
+--------------------------------------------------
+2026/09/20 21:24:47 - [PuTTY-ranvis] Mirror & Update Started
+[putty-ranvis.json] Fetching https://www.ranvis.com/putty ...
+[putty-ranvis.json] Current=0.85.20260820  Latest=0.85.20260820
+[putty-ranvis.json] 0.85.20260820 (Up to date, mirror exists)
+--------------------------------------------------
