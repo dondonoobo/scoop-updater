@@ -9,7 +9,7 @@ permissions:
 
 jobs:
   update:
-    runs-on: ubuntu-latest
+    runs-on: windows-latest
     steps:
       # ランダムに 5〜90 秒待機して他のリクエストとの衝突を完全回避
       - name: Random Jitter Delay
