@@ -56,6 +56,7 @@ jobs:
             "$env:GITHUB_WORKSPACE\updater\scripts\update-putty-ranvis.ps1"
           )
           $failed = @()
+          $warnings = @()
           foreach ($script in $scripts) {
             $name = Split-Path $script -Leaf
             Write-Host "========== Running $name =========="
@@ -68,7 +69,19 @@ jobs:
             } catch {
               Write-Host "::error::$name failed: $_"
               Write-Host "========== $name FAILED =========="
-              $failed += "$name : $_"
+              if ($name -eq 'update-putty-ranvis.ps1') {
+                # ranvis.com は接続が不安定なことがあるため失敗してもワークフローは継続
+                $warnings += "$name : $_"
+              } else {
+                $failed += "$name : $_"
+              }
+            }
+          }
+          if ($warnings.Count -gt 0) {
+            Write-Host ""
+            Write-Host "::warning::The following updater(s) failed (non-fatal):"
+            foreach ($w in $warnings) {
+              Write-Host "  - $w"
             }
           }
           if ($failed.Count -gt 0) {

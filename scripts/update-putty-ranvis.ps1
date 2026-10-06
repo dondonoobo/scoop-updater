@@ -39,18 +39,18 @@ try {
     $pageUrl = 'https://www.ranvis.com/putty'
     Write-Info "[$fileName] Fetching $pageUrl ..." $logFile
 
-    $maxRetries = 3
+    $maxRetries = 5
     $retryCount = 0
     $html = $null
     while ($retryCount -lt $maxRetries) {
         try {
-            $html = (Invoke-WebRequest -Uri $pageUrl -UserAgent $browserUA -UseBasicParsing -ErrorAction Stop).Content
+            $html = (Invoke-WebRequest -Uri $pageUrl -UserAgent $browserUA -UseBasicParsing -TimeoutSec 60 -ErrorAction Stop).Content
             break
         } catch {
             $retryCount++
             Write-Info "[$fileName] Fetch failed: $_. Retrying ($retryCount/$maxRetries)..." $logFile
             if ($retryCount -eq $maxRetries) { throw }
-            Start-Sleep -Seconds 5
+            Start-Sleep -Seconds (5 * $retryCount * $retryCount)
         }
     }
 
@@ -106,13 +106,13 @@ try {
     $retryCount = 0
     while ($retryCount -lt $maxRetries) {
         try {
-            Invoke-WebRequest -Uri "$srcBase/$name64" -UserAgent $browserUA -OutFile $path64 -UseBasicParsing -ErrorAction Stop
+            Invoke-WebRequest -Uri "$srcBase/$name64" -UserAgent $browserUA -OutFile $path64 -UseBasicParsing -TimeoutSec 60 -ErrorAction Stop
             break
         } catch {
             $retryCount++
             Write-Info "[$fileName] Download failed: $_. Retrying ($retryCount/$maxRetries)..." $logFile
             if ($retryCount -eq $maxRetries) { throw }
-            Start-Sleep -Seconds 5
+            Start-Sleep -Seconds (5 * $retryCount * $retryCount)
         }
     }
     $assets += $path64
@@ -126,13 +126,13 @@ try {
         $retryCount = 0
         while ($retryCount -lt $maxRetries) {
             try {
-                Invoke-WebRequest -Uri "$srcBase/$name32" -UserAgent $browserUA -OutFile $path32 -UseBasicParsing -ErrorAction Stop
+                Invoke-WebRequest -Uri "$srcBase/$name32" -UserAgent $browserUA -OutFile $path32 -UseBasicParsing -TimeoutSec 60 -ErrorAction Stop
                 break
             } catch {
                 $retryCount++
                 Write-Info "[$fileName] Download failed: $_. Retrying ($retryCount/$maxRetries)..." $logFile
                 if ($retryCount -eq $maxRetries) { throw }
-                Start-Sleep -Seconds 5
+                Start-Sleep -Seconds (5 * $retryCount * $retryCount)
             }
         }
         $assets += $path32
