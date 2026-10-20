@@ -53,6 +53,7 @@ jobs:
           $scripts = @(
             "$env:GITHUB_WORKSPACE\updater\scripts\update-fbneo.ps1",
             "$env:GITHUB_WORKSPACE\updater\scripts\update-eden.ps1",
+            "$env:GITHUB_WORKSPACE\updater\scripts\update-mame.ps1",
             "$env:GITHUB_WORKSPACE\updater\scripts\update-putty-ranvis.ps1"
           )
           $failed = @()
