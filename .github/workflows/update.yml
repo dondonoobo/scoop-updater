@@ -95,6 +95,50 @@ jobs:
           }
           Write-Host "All updaters completed successfully."
 
+      # 4.5) 生成されたマニフェストを検証（不正な version をコミットしないための安全策）
+      - name: Validate manifests
+        if: always()
+        shell: pwsh
+        working-directory: manifest
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $invalid = @()
+
+          Get-ChildItem bucket/*.json | ForEach-Object {
+            $name = $_.Name
+            try {
+              $json = Get-Content $_.FullName -Raw | ConvertFrom-Json
+            } catch {
+              $invalid += "${name}: invalid JSON ($_)"
+              return
+            }
+            switch ($name) {
+              'fbneo-nightly.json' {
+                if ($json.version -notmatch '^[0-9a-f]{7,40}$') {
+                  $invalid += "${name}: unexpected version '$($json.version)'"
+                }
+              }
+              'eden-nightly.json' {
+                if ($json.version -notmatch '^\d+\.[0-9a-f]{7,40}$') {
+                  $invalid += "${name}: unexpected version '$($json.version)'"
+                }
+              }
+              'mame.json' {
+                if ($json.version -notmatch '^\d+(\.\d+)+$') {
+                  $invalid += "${name}: unexpected version '$($json.version)'"
+                }
+              }
+            }
+          }
+
+          if ($invalid.Count -gt 0) {
+            $invalid | ForEach-Object { Write-Host "::error::$_" }
+            Write-Host "Reverting manifest changes to avoid publishing a broken manifest."
+            git checkout -- bucket/
+            throw "Manifest validation failed."
+          }
+          Write-Host "Manifest validation passed."
+
       # 5) マニフェストリポジトリ(A)へコミット＆プッシュ
       - name: Commit & push manifest changes
         if: always() # ← エラーが起きても必ず実行する
