@@ -18422,3 +18422,25 @@
 [putty-ranvis.json] Current=0.85.20260820  Latest=0.85.20260820
 [putty-ranvis.json] 0.85.20260820 (Up to date, mirror exists)
 --------------------------------------------------
+2026/10/21 05:25:06 - [FBNeo] Update Check Started
+[fbneo-nightly.json] Current=82b31ca  Latest=021a318
+[fbneo-nightly.json] New version detected: 82b31ca -> 021a318
+[fbneo-nightly.json] Calculating hash for 64bit (https://github.com/finalburnneo/FBNeo/releases/download/latest/windows-x86_64.zip)...
+[fbneo-nightly.json] 64bit SHA256: 2e7b0282abc4cb00722358b838b7bdcfb679dbbfadcded4eeff5d392520856aa
+[fbneo-nightly.json] Calculating hash for 32bit (https://github.com/finalburnneo/FBNeo/releases/download/latest/windows-x86_32.zip)...
+[fbneo-nightly.json] 32bit SHA256: 1b65a4abe0adec0e1ba45534346407cbd0f6ec5790d4097557888a9d0d47123c
+[fbneo-nightly.json] Updated: 82b31ca -> 021a318
+--------------------------------------------------
+2026/10/21 05:25:08 - [Eden] Update Check Started
+[eden-nightly.json] Current=1792353251.de7e6e01d4  Latest=1792353251.de7e6e01d4
+[eden-nightly.json] 1792353251.de7e6e01d4 (Up to date)
+--------------------------------------------------
+2026/10/21 05:25:08 - [MAME] Update Check Started
+[mame.json] Current=0.289  Latest=0.289
+[mame.json] 0.289 (Up to date)
+--------------------------------------------------
+2026/10/21 05:25:09 - [PuTTY-ranvis] Mirror & Update Started
+[putty-ranvis.json] Fetching https://www.ranvis.com/putty ...
+[putty-ranvis.json] Current=0.85.20260820  Latest=0.85.20260820
+[putty-ranvis.json] 0.85.20260820 (Up to date, mirror exists)
+--------------------------------------------------
