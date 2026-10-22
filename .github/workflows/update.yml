@@ -52,7 +52,6 @@ jobs:
           $ErrorActionPreference = 'Continue'
           $scripts = @(
             "$env:GITHUB_WORKSPACE\updater\scripts\update-fbneo.ps1",
-            "$env:GITHUB_WORKSPACE\updater\scripts\update-eden.ps1",
             "$env:GITHUB_WORKSPACE\updater\scripts\update-mame.ps1",
             "$env:GITHUB_WORKSPACE\updater\scripts\update-putty-ranvis.ps1"
           )
@@ -115,11 +114,6 @@ jobs:
             switch ($name) {
               'fbneo-nightly.json' {
                 if ($json.version -notmatch '^[0-9a-f]{7,40}$') {
-                  $invalid += "${name}: unexpected version '$($json.version)'"
-                }
-              }
-              'eden-nightly.json' {
-                if ($json.version -notmatch '^\d+\.[0-9a-f]{7,40}$') {
                   $invalid += "${name}: unexpected version '$($json.version)'"
                 }
               }
