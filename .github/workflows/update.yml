@@ -41,7 +41,8 @@ jobs:
           iex "& {$(irm get.scoop.sh)} -RunAsAdmin"
           echo "$env:USERPROFILE\scoop\shims" | Out-File -FilePath $env:GITHUB_PATH -Append -Encoding utf8
 
-      # 4) 各更新スクリプトを実行（1つ失敗しても他は続行し、最後にまとめて報告）
+      # 4) マニフェストの checkver/autoupdate を実行
+      #    標準的な更新は checkver に任せ、特殊な PuTTY ミラーだけスクリプトで処理する
       - name: Run updaters
         shell: pwsh
         env:
@@ -50,18 +51,49 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.MANIFEST_PUSH_TOKEN }}  # gh CLI / release 用
         run: |
           $ErrorActionPreference = 'Continue'
-          $scripts = @(
-            "$env:GITHUB_WORKSPACE\updater\scripts\update-fbneo.ps1",
-            "$env:GITHUB_WORKSPACE\updater\scripts\update-mame.ps1",
-            "$env:GITHUB_WORKSPACE\updater\scripts\update-putty-ranvis.ps1"
-          )
+          . "$env:GITHUB_WORKSPACE\updater\scripts\_common.ps1"
+          $checkver = Get-CheckverScript
+          $manifestRoot = $env:MANIFEST_REPO_DIR
+
+          # checkver を持つマニフェストを自動検出する。
+          # putty-ranvis は ranvis の User-Agent 制限に対応するため、
+          # 独自ミラーを個別に実行する（ここでは除外）。
+          $apps = @()
+          Get-ChildItem (Join-Path $manifestRoot 'bucket') -Filter '*.json' | ForEach-Object {
+            if ($_.BaseName -eq 'putty-ranvis') { return }
+            try {
+              $manifest = Get-Content $_.FullName -Raw -ErrorAction Stop | ConvertFrom-Json
+              if ($manifest.checkver) { $apps += $_.BaseName }
+            } catch {
+              Write-Host "::warning::$($_.Name): failed to parse manifest: $_"
+            }
+          }
+
+          $updaters = @()
+          foreach ($app in $apps) {
+            $updaters += @{ Name = $app; Type = 'checkver' }
+          }
+          $updaters += @{
+            Name = 'update-putty-ranvis.ps1'
+            Type = 'script'
+            Path = "$env:GITHUB_WORKSPACE\updater\scripts\update-putty-ranvis.ps1"
+          }
+
           $failed = @()
           $warnings = @()
-          foreach ($script in $scripts) {
-            $name = Split-Path $script -Leaf
+          foreach ($updater in $updaters) {
+            $name = $updater.Name
             Write-Host "========== Running $name =========="
             try {
-              & $script
+              $LASTEXITCODE = 0
+              switch ($updater.Type) {
+                'checkver' {
+                  & $checkver $name -Dir $manifestRoot -Update -ThrowError
+                }
+                'script' {
+                  & $updater.Path
+                }
+              }
               if ($LASTEXITCODE -and $LASTEXITCODE -ne 0) {
                 throw "Script exited with code $LASTEXITCODE"
               }
