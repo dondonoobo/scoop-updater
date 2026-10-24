@@ -113,7 +113,7 @@ jobs:
             }
             switch ($name) {
               'fbneo-nightly.json' {
-                if ($json.version -notmatch '^[0-9a-f]{7,40}$') {
+                if ($json.version -notmatch '^v[0-9]{14}-[0-9a-f]{7,40}$') {
                   $invalid += "${name}: unexpected version '$($json.version)'"
                 }
               }

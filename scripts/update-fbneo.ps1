@@ -51,12 +51,23 @@ try {
         }
     }
 
-    # target_commitish は通常 40桁のコミットSHA。先頭7桁をバージョンとして使用する。
+    # target_commitish は通常 40桁のコミットSHA。先頭7桁をコミット識別子に使う。
     $sha = [string]$release.target_commitish
     if ($sha -notmatch '^[0-9a-fA-F]{7,40}$') {
         throw "Unexpected target_commitish '$sha' in release '$($release.tag_name)'."
     }
-    $newVersion = $sha.Substring(0, 7).ToLower()
+    $commit = $sha.Substring(0, 7).ToLower()
+
+    # バージョンは「リリース日時 + コミットSHA」にする。
+    # Scoop はバージョンを辞書順で比較するため、ハッシュだけだと
+    # 先頭文字によっては新しいビルドが古いと判定されて更新されない。
+    # 先頭の 'v' は、旧ハッシュ版から確実に新しいと判定させるための固定接頭辞。
+    $publishedRaw = $release.published_at
+    if (-not $publishedRaw) {
+        throw "Release '$($release.tag_name)' has no published_at."
+    }
+    $published = [datetimeoffset]$publishedRaw
+    $newVersion = 'v{0}-{1}' -f $published.ToUniversalTime().ToString('yyyyMMddHHmmss'), $commit
 
     $json       = Get-Content $jsonPath -Raw -ErrorAction Stop | ConvertFrom-Json
     $oldVersion = $json.version
